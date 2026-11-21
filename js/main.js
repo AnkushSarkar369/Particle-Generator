@@ -58,11 +58,13 @@
   })();
 
   let applying = false;
+  let customColorCharged = false;
   function applyPreset(id) {
     const p = PARTICLES.find(x => x.id === id);
     applying = true;
     el.preset.value = p ? id : '';
     if (p) {
+      customColorCharged = !!p.colored;
       el.mass.value = vFromMass(p.m);
       el.charge.value = p.qt + 3;
       el.spin.value = SPIN_VALUES.indexOf(p.spin);
@@ -75,6 +77,7 @@
   el.preset.addEventListener('change', () => applyPreset(el.preset.value));
   el.reset.addEventListener('click', () => {
     el.preset.value = '';
+    customColorCharged = false;
     el.mass.value = 0; el.charge.value = 3; el.spin.value = 0; el.energy.value = 0; el.anti.checked = false;
     sync(false);
   });
@@ -84,12 +87,16 @@
     const v = +el.mass.value, ev = +el.energy.value;
     const selectedPreset = PARTICLES.find(p => p.id === el.preset.value);
     return { v, m: massFromV(v), qt: CHARGE_THIRDS[+el.charge.value], spin: SPIN_VALUES[+el.spin.value],
-      colorCharged: !!(selectedPreset && selectedPreset.colored),
+      colorCharged: selectedPreset ? !!selectedPreset.colored : customColorCharged,
       anti: el.anti.checked, ev, gamma: Math.pow(10, ev / 50) };
   }
 
   function sync(manual) {
-    if (manual && !applying) el.preset.value = '';
+    if (manual && !applying) {
+      const previousPreset = PARTICLES.find(p => p.id === el.preset.value);
+      if (previousPreset) customColorCharged = !!previousPreset.colored;
+      el.preset.value = '';
+    }
     const s = getState();
     $('mass-val').textContent = fmtMass(s.m);
     $('charge-val').textContent = fmtCharge(s.qt) + ' e';
