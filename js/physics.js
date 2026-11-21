@@ -35,13 +35,13 @@ function nearestKnown(s) {
   if (p.qt !== s.qt) diffs.push('charge');
   if (p.spin !== s.spin) diffs.push('spin');
   if (p.colored !== !!s.colorCharged) diffs.push('color');
-  if (p.useAnti && p.colored === (s.col > 0) && p.anti !== s.anti) diffs.push('matter/antimatter flag (antiquarks carry anti-color)');
+  if (p.useAnti && p.colored === !!s.colorCharged && p.anti !== s.anti) diffs.push('matter/antimatter flag (antiquarks carry anti-color)');
   return { p, diffs };
 }
 
 /* Rough decay estimate for a hypothetical state. Returns {tau (s) | Infinity | null, ch} */
 function estimateDecay(s) {
-  const mG = s.m / 1000, colored = s.col > 0, qt = s.qt, sp = s.spin, frac = qt % 3 !== 0;
+  const mG = s.m / 1000, colored = !!s.colorCharged, qt = s.qt, sp = s.spin, frac = qt % 3 !== 0;
   const T = gGeV => HBAR / (gGeV * 1000);
   if (s.m === 0) return { tau: Infinity, ch: 'Massless: nothing lighter to decay into.' };
   if (colored) {
