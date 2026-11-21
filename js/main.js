@@ -1,7 +1,7 @@
 'use strict';
 (function () {
   const $ = id => document.getElementById(id);
-  const el = { preset: $('preset'), anti: $('anti'), reset: $('reset'), mass: $('mass'), charge: $('charge'), spin: $('spin'), color: $('color'), energy: $('energy'), card: $('card') };
+  const el = { preset: $('preset'), anti: $('anti'), reset: $('reset'), mass: $('mass'), charge: $('charge'), spin: $('spin'), energy: $('energy'), card: $('card') };
 
   /* ---------- formatting ---------- */
   const SUP = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
@@ -12,11 +12,11 @@
   const fmtSpin = s => s === 0 ? '0' : s === 0.5 ? '½' : '1';
   const fmtLen = fm => fm >= 1e6 ? sci(fm / 1e6) + ' nm' : fm >= 1 ? fm.toPrecision(3) + ' fm' : sci(fm) + ' fm';
   const fmtTau = t => t === Infinity ? 'stable' : t === null ? 'n/a' : sci(t) + ' s';
-  const colorName = s => s.col === 0 ? 'None' : (s.anti ? ANTI_COLOR_NAMES : COLOR_NAMES)[s.col];
+  const colorName = s => s.colorCharged ? 'Color-charged' : 'Color-neutral';
 
   /* ---------- colors ---------- */
-  const COLOR_HEX = [0xc9b8ff, 0xff3b4e, 0x3bff7a, 0x3b6bff];
-  const ANTI_HEX = [0xc9b8ff, 0x3be8ff, 0xff3be8, 0xffe83b];
+  const COLOR_HEX = 0xb9a8ff;
+  const CHROMATIC_HEX = 0x7ddbc1;
   const chargeHex = qt => qt > 0 ? 0xff7a45 : qt < 0 ? 0x45b8ff : 0xbfc8ff;
 
   /* ---------- landmarks & ticks ---------- */
@@ -43,7 +43,6 @@
     .concat(LANDMARKS.map((l, i) => ({ f: l.v / 1000, label: l.sym, title: `${l.name}: ${fmtMass(l.m)}`, lvl: (i % 3), val: l.v }))), v => pick(el.mass, v));
   buildTicks('t-charge', CHARGE_THIRDS.map((q, i) => ({ f: i / 6, label: fmtCharge(q).replace('+', ''), val: i })), v => pick(el.charge, v));
   buildTicks('t-spin', [['0', 'scalar (Higgs)'], ['½', 'fermions'], ['1', 'gauge bosons']].map(([label, title], i) => ({ f: i / 2, label, title, val: i })), v => pick(el.spin, v));
-  buildTicks('t-color', ['None', 'R', 'G', 'B'].map((label, i) => ({ f: i / 3, label, val: i })), v => pick(el.color, v));
   buildTicks('t-energy', [1, 2, 10, 100].map(g => ({ f: Math.log10(g) / 2, label: 'γ=' + g, val: Math.round(Math.log10(g) * 50) })), v => pick(el.energy, v));
 
   /* ---------- presets ---------- */
@@ -64,7 +63,6 @@
     el.mass.value = vFromMass(p.m);
     el.charge.value = p.qt + 3;
     el.spin.value = SPIN_VALUES.indexOf(p.spin);
-    el.color.value = p.colored ? 1 : 0;
     el.anti.checked = !!(p.useAnti && p.anti);
     sync(false);
     el.preset.value = id;
@@ -72,14 +70,14 @@
   }
   el.preset.addEventListener('change', () => applyPreset(el.preset.value));
   el.reset.addEventListener('click', () => {
-    el.mass.value = 0; el.charge.value = 3; el.spin.value = 0; el.color.value = 0; el.energy.value = 0; el.anti.checked = false;
+    el.mass.value = 0; el.charge.value = 3; el.spin.value = 0; el.energy.value = 0; el.anti.checked = false;
     sync(false); el.preset.value = '';
   });
 
   /* ---------- state & sync ---------- */
   function getState() {
     const v = +el.mass.value, ev = +el.energy.value;
-    return { v, m: massFromV(v), qt: CHARGE_THIRDS[+el.charge.value], spin: SPIN_VALUES[+el.spin.value], col: +el.color.value,
+    return { v, m: massFromV(v), qt: CHARGE_THIRDS[+el.charge.value], spin: SPIN_VALUES[+el.spin.value],
       anti: el.anti.checked, ev, gamma: Math.pow(10, ev / 50) };
   }
 
@@ -89,13 +87,14 @@
     $('mass-val').textContent = fmtMass(s.m);
     $('charge-val').textContent = fmtCharge(s.qt) + ' e';
     $('spin-val').textContent = fmtSpin(s.spin) + ' ħ';
-    $('color-val').textContent = colorName(s);
     $('energy-val').textContent = 'γ = ' + s.gamma.toFixed(s.gamma < 10 ? 2 : 1);
 
-    const coreHex = s.col > 0 ? (s.anti ? ANTI_HEX : COLOR_HEX)[s.col] : (s.qt !== 0 ? chargeHex(s.qt) : COLOR_HEX[0]);
+    const state = analyze(s);
+    s.colorCharged = !!state.colorCharged;
+    const coreHex = state.colorCharged ? CHROMATIC_HEX : (s.qt !== 0 ? chargeHex(s.qt) : COLOR_HEX);
     document.documentElement.style.setProperty('--accent', '#' + coreHex.toString(16).padStart(6, '0'));
     Scene.set({ mass01: s.v / 1000, energy01: s.ev / 100, spin: s.spin, qt: s.qt, colorHex: coreHex, chargeHex: chargeHex(s.qt), gamma: s.gamma });
-    renderCard(s, analyze(s));
+    renderCard(s, state);
   }
 
   function renderCard(s, A) {
@@ -116,7 +115,7 @@
       + `<span>Rest mass</span><span>${fmtMass(s.m)}</span>`
       + `<span>Charge</span><span>${fmtCharge(s.qt)} e</span>`
       + `<span>Spin</span><span>${fmtSpin(s.spin)} ħ</span>`
-      + `<span>Color</span><span>${colorName(s)}</span>`
+      + `<span>Color charge</span><span>${colorName(s)}</span>`
       + `<span>γ / β</span><span>${gamma.toFixed(2)} / ${s.m === 0 ? '1 (c)' : beta.toFixed(4)}</span>`
       + `<span>Energy${s.m === 0 ? ' (ref.)' : ''}</span><span>${fmtE(E)}</span>`
       + `<span>Momentum</span><span>${fmtE(p)}/c</span>`
@@ -141,7 +140,7 @@
     }
     sync(true);
   });
-  for (const k of ['charge', 'spin', 'color', 'energy']) el[k].addEventListener('input', () => sync(true));
+  for (const k of ['charge', 'spin', 'energy']) el[k].addEventListener('input', () => sync(true));
   el.anti.addEventListener('change', () => sync(true));
 
   window.addEventListener('keydown', e => {
@@ -151,5 +150,10 @@
   window.addEventListener('keyup', e => { if (e.key === 'Shift') shift = false; });
   $('hudToggle').addEventListener('click', () => document.body.classList.toggle('nohud'));
 
+  const updateRangeFill = input => input.style.setProperty('--track-fill', `${(input.value - input.min) / (input.max - input.min) * 100}%`);
+  for (const input of [el.mass, el.charge, el.spin, el.energy]) {
+    updateRangeFill(input);
+    input.addEventListener('input', () => updateRangeFill(input));
+  }
   sync(false);
 })();
