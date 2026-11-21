@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quantum Particle Lab</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="fps">-- fps</div>
+<button id="hudToggle" title="Toggle HUD (H)">HUD</button>
+
+<aside id="left" class="glass">
+  <h1>Quantum Particle Lab</h1>
+  <div class="sub">Blank core &rarr; any Standard Model particle (or something new)</div>
+
+  <div class="ctl">
+    <div class="lbl"><span>Preset</span></div>
+    <select id="preset"></select>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="anti"> Antiparticle / anti-color</label>
+      <button id="reset">Reset to blank</button>
+    </div>
+  </div>
+
+  <div class="ctl">
+    <div class="lbl"><span>Rest mass (log scale)</span><b id="mass-val"></b></div>
+    <input type="range" id="mass" min="0" max="1000" step="1" value="0">
+    <div class="ticks" id="t-mass"></div>
+  </div>
+
+  <div class="ctl">
+    <div class="lbl"><span>Electric charge</span><b id="charge-val"></b></div>
+    <input type="range" id="charge" min="0" max="6" step="1" value="3">
+    <div class="ticks short" id="t-charge"></div>
+  </div>
+
+  <div class="ctl">
+    <div class="lbl"><span>Spin</span><b id="spin-val"></b></div>
+    <input type="range" id="spin" min="0" max="2" step="1" value="0">
+    <div class="ticks short" id="t-spin"></div>
+  </div>
+
+  <div class="ctl">
+    <div class="lbl"><span>Color charge</span><b id="color-val"></b></div>
+    <input type="range" id="color" min="0" max="3" step="1" value="0">
+    <div class="ticks short" id="t-color"></div>
+  </div>
+
+  <div class="ctl">
+    <div class="lbl"><span>Energy / momentum (&gamma;)</span><b id="energy-val"></b></div>
+    <input type="range" id="energy" min="0" max="100" step="1" value="0">
+    <div class="ticks short" id="t-energy"></div>
+  </div>
+</aside>
+
+<aside id="right" class="glass"><div id="card"></div></aside>
+<div id="hint">Drag: orbit &middot; Wheel: zoom &middot; Hold Shift while dragging mass: no snapping &middot; H: hide HUD</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="js/data.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
