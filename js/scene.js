@@ -4,27 +4,9 @@ const Scene = (function () {
   const canvas = document.getElementById('c');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   // Cap backing resolution: high-DPI rendering is disproportionately expensive on older iGPUs.
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.0));
   renderer.setClearColor(0x03040a, 1);
 
-  // WebGL diagnostics: VA-API (video decode/encode) is separate from 3D rendering.
-  const gpuEl = document.getElementById('gpu');
-  if (gpuEl) {
-    try {
-      const gl = renderer.getContext();
-      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-      const gpuVendor = gl.getParameter(debugInfo ? debugInfo.UNMASKED_VENDOR_WEBGL : gl.VENDOR);
-      const gpuName = gl.getParameter(debugInfo ? debugInfo.UNMASKED_RENDERER_WEBGL : gl.RENDERER);
-      const rendererName = [gpuVendor, gpuName].filter(Boolean).join(' · ') || 'WebGL renderer (details hidden)';
-      const software = /llvmpipe|softpipe|swiftshader|software rasterizer|swr/i.test(rendererName);
-      gpuEl.textContent = (software ? 'SOFTWARE · ' : 'GPU · ') + rendererName;
-      gpuEl.title = `WebGL renderer: ${rendererName}. ${software ? 'This is software rendering, not the Intel GPU.' : 'Rendering is handled by the browser WebGL graphics driver.'}`;
-      gpuEl.classList.toggle('software', software);
-    } catch (error) {
-      gpuEl.textContent = 'GPU · WebGL renderer details unavailable';
-      gpuEl.title = String(error);
-    }
-  }
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x03040a, 0.02);
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 300);
@@ -121,7 +103,7 @@ void main(){
  vec3 col=uColor*(0.35*dens+(0.9+uEnergy*1.4)*f)+vec3(1.)*pow(f,5.)*0.5+uColor*vD*0.25;
  gl_FragColor=vec4(col,0.9);
 }`, { uniforms: { uTime: U.uTime, uMass: U.uMass, uEnergy: U.uEnergy, uSpin: U.uSpin, uColor: U.uColor } });
-  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 12), coreMat);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 14), coreMat);
 
   /* --- orbiting cloud (ring for spin>0, shell for spin 0) --- */
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -162,8 +144,12 @@ void main(){
 }`, `
 uniform vec3 uColor; uniform float uEnergy; varying float vTw;
 void main(){
- float d=length(gl_PointCoord-.5); float a=smoothstep(.5,0.,d); a*=a;
- gl_FragColor=vec4(uColor*(0.8+uEnergy*1.5)*vTw,a*0.9);
+ float d=length(gl_PointCoord-vec2(.5));
+ float halo=1.-smoothstep(.10,.5,d);
+ float core=1.-smoothstep(0.,.17,d);
+ float alpha=halo*.38+core*.62;
+ vec3 tint=mix(uColor,vec3(1.),core*.22);
+ gl_FragColor=vec4(tint*(.82+uEnergy*1.45)*vTw,alpha*.86);
 }`, { uniforms: { uTime: U.uTime, uMass: U.uMass, uEnergy: U.uEnergy, uSpin: U.uSpin, uPx: U.uPx, uColor: U.uColor } });
   const cloud = new THREE.Points(cg, cloudMat);
   cloud.frustumCulled = false;
@@ -199,8 +185,11 @@ void main(){
 }`, `
 uniform vec3 uChargeColor; varying float vA;
 void main(){
- float d=length(gl_PointCoord-.5); float a=smoothstep(.5,0.,d);
- gl_FragColor=vec4(uChargeColor*1.6,a*vA);
+ float d=length(gl_PointCoord-vec2(.5));
+ float halo=1.-smoothstep(.08,.5,d);
+ float core=1.-smoothstep(0.,.16,d);
+ vec3 tint=mix(uChargeColor,vec3(1.),core*.18);
+ gl_FragColor=vec4(tint*1.45,(halo*.42+core*.58)*vA);
 }`, { uniforms: { uTime: U.uTime, uQ: U.uQ, uEnergy: U.uEnergy, uPx: U.uPx, uChargeColor: U.uChargeColor } });
   const field = new THREE.Points(fg, fieldMat);
   field.frustumCulled = false;
@@ -217,7 +206,7 @@ void main(){
   scene.add(group);
 
   /* --- gravity grid: pit depth follows mass; ripples follow energy --- */
-  const GN = 32, GS = 64, GE = 7;
+  const GN = 26, GS = 52, GE = 7;
   const gp = [];
   for (let i = 0; i <= GN; i++) {
     const a = -GE + 2 * GE * i / GN;
@@ -240,7 +229,10 @@ void main(){
  gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
 }`, `
 uniform vec3 uColor; varying float vF;
-void main(){ gl_FragColor=vec4(mix(vec3(0.25,0.6,0.9),uColor,0.4),vF*0.5); }`,
+void main(){
+ vec3 base=mix(vec3(0.22,0.48,0.78),uColor,0.46);
+ gl_FragColor=vec4(base*(0.88+vF*0.18),vF*(0.46+vF*0.10));
+}`,
   { uniforms: { uTime: U.uTime, uMass: U.uMass, uEnergy: U.uEnergy, uColor: U.uColor } });
   const grid = new THREE.LineSegments(gg, gridMat);
   grid.frustumCulled = false;
