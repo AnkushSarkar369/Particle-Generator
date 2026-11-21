@@ -3,27 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quantum Particle Lab</title>
+<title>Particle Lab — Interactive Standard Model Explorer</title>
+<meta name="theme-color" content="#080b12">
+<meta name="description" content="An interactive particle physics sandbox. Explore mass, charge, spin and energy.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="fps">-- fps</div>
-<button id="hudToggle" title="Toggle HUD (H)">HUD</button>
+<button id="hudToggle" title="Toggle interface (H)" aria-label="Toggle interface">Hide UI <span>H</span></button>
 
 <aside id="left" class="glass">
-  <h1>Quantum Particle Lab</h1>
-  <div class="sub">Blank core &rarr; any Standard Model particle (or something new)</div>
+  <div class="eyebrow">PARTICLE PHYSICS / SANDBOX</div>
+  <h1>Particle <span>Lab</span></h1>
+  <div class="sub">Explore the properties of fundamental particles.</div>
 
-  <div class="ctl">
-    <div class="lbl"><span>Preset</span></div>
+  <div class="ctl preset-ctl">
+    <div class="lbl"><span>Starting point</span><span class="micro">STANDARD MODEL</span></div>
     <select id="preset"></select>
     <div class="row">
-      <label class="chk"><input type="checkbox" id="anti"> Antiparticle / anti-color</label>
+      <label class="chk"><input type="checkbox" id="anti"> Antiparticle</label>
       <button id="reset">Reset to blank</button>
     </div>
   </div>
 
+  <div class="group-label">PARTICLE PROPERTIES</div>
   <div class="ctl">
     <div class="lbl"><span>Rest mass (log scale)</span><b id="mass-val"></b></div>
     <input type="range" id="mass" min="0" max="1000" step="1" value="0">
@@ -42,12 +46,7 @@
     <div class="ticks short" id="t-spin"></div>
   </div>
 
-  <div class="ctl">
-    <div class="lbl"><span>Color charge</span><b id="color-val"></b></div>
-    <input type="range" id="color" min="0" max="3" step="1" value="0">
-    <div class="ticks short" id="t-color"></div>
-  </div>
-
+    <div class="group-label dynamics-label">DYNAMICS</div>
   <div class="ctl">
     <div class="lbl"><span>Energy / momentum (&gamma;)</span><b id="energy-val"></b></div>
     <input type="range" id="energy" min="0" max="100" step="1" value="0">
@@ -56,7 +55,7 @@
 </aside>
 
 <aside id="right" class="glass"><div id="card"></div></aside>
-<div id="hint">Drag: orbit &middot; Wheel: zoom &middot; Hold Shift while dragging mass: no snapping &middot; H: hide HUD</div>
+<div id="hint"><span>DRAG</span> Orbit <i></i> <span>SCROLL</span> Zoom <i></i> <span>SHIFT</span> Free mass <i></i> <span>H</span> Toggle UI</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
