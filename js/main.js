@@ -12,7 +12,7 @@
   const fmtSpin = s => s === 0 ? '0' : s === 0.5 ? '½' : '1';
   const fmtLen = fm => fm >= 1e6 ? sci(fm / 1e6) + ' nm' : fm >= 1 ? fm.toPrecision(3) + ' fm' : sci(fm) + ' fm';
   const fmtTau = t => t === Infinity ? 'stable' : t === null ? 'n/a' : sci(t) + ' s';
-  const colorName = s => s.colorCharged ? 'Present (non-singlet)' : 'None (singlet)';
+  const colorName = s => s.colorCharged ? 'Color-charged' : 'Color-neutral';
 
   /* ---------- colors ---------- */
   const COLOR_HEX = 0xb9a8ff;
