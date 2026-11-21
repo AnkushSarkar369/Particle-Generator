@@ -20,10 +20,8 @@
   const chargeHex = qt => qt > 0 ? 0xff7a45 : qt < 0 ? 0x45b8ff : 0xbfc8ff;
 
   /* ---------- landmarks & ticks ---------- */
-  const LANDMARKS = [['e⁻', 'Electron', 0.511], ['u', 'Up quark', 2.16], ['d', 'Down quark', 4.67], ['s', 'Strange quark', 93.4],
-    ['μ⁻', 'Muon', 105.658], ['c', 'Charm quark', 1270], ['τ⁻', 'Tau', 1776.86], ['b', 'Bottom quark', 4180],
-    ['W', 'W boson', 80379], ['Z', 'Z boson', 91188], ['H', 'Higgs boson', 125250], ['t', 'Top quark', 172760]]
-    .map(([sym, name, m]) => ({ sym, name, m, v: vFromMass(m) })).sort((a, b) => a.v - b.v);
+  const MASS_SNAP_POINTS = [0.511, 2.16, 4.67, 93.4, 105.658, 1270, 1776.86, 4180, 80379, 91188, 125250, 172760]
+    .map(vFromMass).sort((a, b) => a - b);
 
   function buildTicks(id, items, onPick) {
     const c = $(id); c.innerHTML = '';
@@ -39,8 +37,12 @@
   }
   const pick = (input, v) => { input.value = v; sync(true); };
 
-  buildTicks('t-mass', [{ f: 0, label: 'ν γ g', title: 'Massless: neutrinos (SM), photon, gluon', lvl: 0, val: 0 }]
-    .concat(LANDMARKS.map((l, i) => ({ f: l.v / 1000, label: l.sym, title: `${l.name}: ${fmtMass(l.m)}`, lvl: (i % 3), val: l.v }))), v => pick(el.mass, v));
+  buildTicks('t-mass', [
+    { f: 0, label: '0', title: 'Massless', val: 0 },
+    { f: vFromMass(1) / 1000, label: '1 MeV', title: '1 mega-electronvolt', val: vFromMass(1) },
+    { f: vFromMass(1000) / 1000, label: '1 GeV', title: '1 giga-electronvolt', val: vFromMass(1000) },
+    { f: vFromMass(100000) / 1000, label: '100 GeV', title: '100 giga-electronvolts', val: vFromMass(100000) }
+  ], v => pick(el.mass, v));
   buildTicks('t-charge', CHARGE_THIRDS.map((q, i) => ({ f: i / 6, label: fmtCharge(q).replace('+', ''), val: i })), v => pick(el.charge, v));
   buildTicks('t-spin', [['0', 'scalar (Higgs)'], ['½', 'fermions'], ['1', 'gauge bosons']].map(([label, title], i) => ({ f: i / 2, label, title, val: i })), v => pick(el.spin, v));
   buildTicks('t-energy', [1, 2, 10, 100].map(g => ({ f: Math.log10(g) / 2, label: 'γ=' + g, val: Math.round(Math.log10(g) * 50) })), v => pick(el.energy, v));
@@ -58,40 +60,44 @@
   let applying = false;
   function applyPreset(id) {
     const p = PARTICLES.find(x => x.id === id);
-    if (!p) return;
     applying = true;
-    el.mass.value = vFromMass(p.m);
-    el.charge.value = p.qt + 3;
-    el.spin.value = SPIN_VALUES.indexOf(p.spin);
-    el.anti.checked = !!(p.useAnti && p.anti);
+    el.preset.value = p ? id : '';
+    if (p) {
+      el.mass.value = vFromMass(p.m);
+      el.charge.value = p.qt + 3;
+      el.spin.value = SPIN_VALUES.indexOf(p.spin);
+      el.anti.checked = !!(p.useAnti && p.anti);
+    }
+    // Energy is kinematic, not an identity field: preserve the selected γ.
     sync(false);
-    el.preset.value = id;
     applying = false;
   }
   el.preset.addEventListener('change', () => applyPreset(el.preset.value));
   el.reset.addEventListener('click', () => {
+    el.preset.value = '';
     el.mass.value = 0; el.charge.value = 3; el.spin.value = 0; el.energy.value = 0; el.anti.checked = false;
-    sync(false); el.preset.value = '';
+    sync(false);
   });
 
   /* ---------- state & sync ---------- */
   function getState() {
     const v = +el.mass.value, ev = +el.energy.value;
+    const selectedPreset = PARTICLES.find(p => p.id === el.preset.value);
     return { v, m: massFromV(v), qt: CHARGE_THIRDS[+el.charge.value], spin: SPIN_VALUES[+el.spin.value],
+      colorCharged: !!(selectedPreset && selectedPreset.colored),
       anti: el.anti.checked, ev, gamma: Math.pow(10, ev / 50) };
   }
 
   function sync(manual) {
-    const s = getState();
     if (manual && !applying) el.preset.value = '';
+    const s = getState();
     $('mass-val').textContent = fmtMass(s.m);
     $('charge-val').textContent = fmtCharge(s.qt) + ' e';
     $('spin-val').textContent = fmtSpin(s.spin) + ' ħ';
     $('energy-val').textContent = 'γ = ' + s.gamma.toFixed(s.gamma < 10 ? 2 : 1);
 
     const state = analyze(s);
-    s.colorCharged = !!state.colorCharged;
-    const coreHex = state.colorCharged ? CHROMATIC_HEX : (s.qt !== 0 ? chargeHex(s.qt) : COLOR_HEX);
+    const coreHex = s.colorCharged ? CHROMATIC_HEX : (s.qt !== 0 ? chargeHex(s.qt) : COLOR_HEX);
     document.documentElement.style.setProperty('--accent', '#' + coreHex.toString(16).padStart(6, '0'));
     Scene.set({ mass01: s.v / 1000, energy01: s.ev / 100, spin: s.spin, qt: s.qt, colorHex: coreHex, chargeHex: chargeHex(s.qt), gamma: s.gamma });
     renderCard(s, state);
@@ -135,12 +141,14 @@
     let v = +el.mass.value;
     if (dragging && !shift) {
       if (v <= 5) v = 0;
-      else { let best = null; for (const l of LANDMARKS) { const d = Math.abs(v - l.v); if (d <= 9 && (!best || d < best.d)) best = { d, v: l.v }; } if (best) v = best.v; }
+      else { let best = null; for (const point of MASS_SNAP_POINTS) { const d = Math.abs(v - point); if (d <= 9 && (!best || d < best.d)) best = { d, v: point }; } if (best) v = best.v; }
       el.mass.value = v;
     }
     sync(true);
   });
-  for (const k of ['charge', 'spin', 'energy']) el[k].addEventListener('input', () => sync(true));
+  for (const k of ['charge', 'spin']) el[k].addEventListener('input', () => sync(true));
+  // Kinetic energy does not alter particle identity or its selected preset.
+  el.energy.addEventListener('input', () => sync(false));
   el.anti.addEventListener('change', () => sync(true));
 
   window.addEventListener('keydown', e => {
