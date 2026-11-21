@@ -12,7 +12,7 @@ function massOk(pm, m) {
 function matchP(p, s) {
   if (!massOk(p.m, s.m)) return false;
   if (p.qt !== s.qt || p.spin !== s.spin) return false;
-  if (p.colored !== (s.col > 0)) return false;
+  if (p.colored !== !!s.colorCharged) return false;
   if (p.useAnti && p.anti !== s.anti) return false;
   return true;
 }
@@ -27,14 +27,14 @@ function nearestKnown(s) {
   let best = null;
   for (const p of PARTICLES) {
     const d = logDist(p.m, s.m);
-    const score = (d < 0.15 ? 1 : 0) + (p.qt === s.qt ? 1 : 0) + (p.spin === s.spin ? 1 : 0) + (p.colored === (s.col > 0) ? 1 : 0);
+    const score = (d < 0.15 ? 1 : 0) + (p.qt === s.qt ? 1 : 0) + (p.spin === s.spin ? 1 : 0) + (p.colored === !!s.colorCharged ? 1 : 0);
     if (!best || score > best.score || (score === best.score && d < best.d)) best = { p, score, d };
   }
   const p = best.p, diffs = [];
   if (!massOk(p.m, s.m)) diffs.push('mass');
   if (p.qt !== s.qt) diffs.push('charge');
   if (p.spin !== s.spin) diffs.push('spin');
-  if (p.colored !== (s.col > 0)) diffs.push('color');
+  if (p.colored !== !!s.colorCharged) diffs.push('color');
   if (p.useAnti && p.colored === (s.col > 0) && p.anti !== s.anti) diffs.push('matter/antimatter flag (antiquarks carry anti-color)');
   return { p, diffs };
 }
@@ -88,7 +88,7 @@ function estimateDecay(s) {
 }
 
 function analyze(s) {
-  const colored = s.col > 0, fermion = s.spin === 0.5, frac = s.qt % 3 !== 0;
+  const colored = !!s.colorCharged, fermion = s.spin === 0.5, frac = s.qt % 3 !== 0;
   const out = { colored, fermion, warns: [] };
   const w = out.warns;
   const matches = PARTICLES.filter(p => matchP(p, s));
