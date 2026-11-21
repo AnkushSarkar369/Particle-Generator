@@ -89,7 +89,7 @@ function estimateDecay(s) {
 
 function analyze(s) {
   const colored = !!s.colorCharged, fermion = s.spin === 0.5, frac = s.qt % 3 !== 0;
-  const out = { colored, fermion, warns: [] };
+  const out = { colored, colorCharged: colored, fermion, warns: [] };
   const w = out.warns;
   const matches = PARTICLES.filter(p => matchP(p, s));
 
