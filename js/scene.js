@@ -2,9 +2,29 @@
 /* ---------- Three.js scene ---------- */
 const Scene = (function () {
   const canvas = document.getElementById('c');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+  // Cap backing resolution: high-DPI rendering is disproportionately expensive on older iGPUs.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
   renderer.setClearColor(0x03040a, 1);
+
+  // WebGL diagnostics: VA-API (video decode/encode) is separate from 3D rendering.
+  const gpuEl = document.getElementById('gpu');
+  if (gpuEl) {
+    try {
+      const gl = renderer.getContext();
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      const gpuVendor = gl.getParameter(debugInfo ? debugInfo.UNMASKED_VENDOR_WEBGL : gl.VENDOR);
+      const gpuName = gl.getParameter(debugInfo ? debugInfo.UNMASKED_RENDERER_WEBGL : gl.RENDERER);
+      const rendererName = [gpuVendor, gpuName].filter(Boolean).join(' · ') || 'WebGL renderer (details hidden)';
+      const software = /llvmpipe|softpipe|swiftshader|software rasterizer|swr/i.test(rendererName);
+      gpuEl.textContent = (software ? 'SOFTWARE · ' : 'GPU · ') + rendererName;
+      gpuEl.title = `WebGL renderer: ${rendererName}. ${software ? 'This is software rendering, not the Intel GPU.' : 'Rendering is handled by the browser WebGL graphics driver.'}`;
+      gpuEl.classList.toggle('software', software);
+    } catch (error) {
+      gpuEl.textContent = 'GPU · WebGL renderer details unavailable';
+      gpuEl.title = String(error);
+    }
+  }
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x03040a, 0.02);
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 300);
@@ -101,12 +121,12 @@ void main(){
  vec3 col=uColor*(0.35*dens+(0.9+uEnergy*1.4)*f)+vec3(1.)*pow(f,5.)*0.5+uColor*vD*0.25;
  gl_FragColor=vec4(col,0.9);
 }`, { uniforms: { uTime: U.uTime, uMass: U.uMass, uEnergy: U.uEnergy, uSpin: U.uSpin, uColor: U.uColor } });
-  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 24), coreMat);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 12), coreMat);
 
   /* --- orbiting cloud (ring for spin>0, shell for spin 0) --- */
   const rnd = (a, b) => a + Math.random() * (b - a);
   const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
-  const N = 7000;
+  const N = 3200;
   const cPos = new Float32Array(N * 3), cSph = new Float32Array(N * 3), cAng = new Float32Array(N), cSeed = new Float32Array(N);
   for (let i = 0; i < N; i++) {
     const a = rnd(0, Math.PI * 2), rr = 1.5 + Math.abs(gauss()) * 0.9 + rnd(0, 0.25);
@@ -149,7 +169,7 @@ void main(){
   cloud.frustumCulled = false;
 
   /* --- electric field lines (flow out for +, in for -; count scales with |q|) --- */
-  const L = 24, K = 48, FN = L * K;
+  const L = 16, K = 32, FN = L * K;
   const fDir = new Float32Array(FN * 3), fPh = new Float32Array(FN), fRank = new Float32Array(FN), fPos = new Float32Array(FN * 3);
   for (let l = 0; l < L; l++) {
     const y = 1 - (l + 0.5) / L * 2, rad = Math.sqrt(1 - y * y), th = l * 2.399963;
@@ -197,7 +217,7 @@ void main(){
   scene.add(group);
 
   /* --- gravity grid: pit depth follows mass; ripples follow energy --- */
-  const GN = 48, GS = 96, GE = 7;
+  const GN = 32, GS = 64, GE = 7;
   const gp = [];
   for (let i = 0; i <= GN; i++) {
     const a = -GE + 2 * GE * i / GN;
@@ -227,8 +247,8 @@ void main(){ gl_FragColor=vec4(mix(vec3(0.25,0.6,0.9),uColor,0.4),vF*0.5); }`,
   scene.add(grid);
 
   /* --- starfield --- */
-  const sp = new Float32Array(1500 * 3);
-  for (let i = 0; i < 1500; i++) {
+  const sp = new Float32Array(700 * 3);
+  for (let i = 0; i < 700; i++) {
     const u = rnd(-1, 1), t = rnd(0, Math.PI * 2), sq = Math.sqrt(1 - u * u), R = rnd(60, 110);
     sp.set([sq * Math.cos(t) * R, u * R, sq * Math.sin(t) * R], i * 3);
   }
